@@ -1,10 +1,10 @@
-from pyswip import Prolog, Functor, call, registerForeign
+from pyswip import Prolog, Variable, Functor, Atom, registerForeign
 from pyswip.easy import *
 
 prompts = {
-    "day_preference": "Is it the weekday or the weekend?",
-    "closing_time": "How late do you need the study spot to be available until?",
-    "study_spot_preference": "Do you want a free or paid study spot?",
+    # "day_preference": "Is it the weekday or the weekend?",
+    # "closing_time": "How late do you need the study spot to be available until?",
+    "payment_preference": "Do you want a free or paid study spot?",
     "coffee_available": "Do you want a study spot that has coffee available?",
     "food_available": "Do you want a study spot that has food available?",
     "meal_type": "Do you want a full meal or a snack/pastry?",
@@ -17,9 +17,9 @@ prompts = {
 }
 
 choices = {
-    "day_preference": ["Weekday", "Weekend"],
-    "closing_time": ["Before 18:00", "18:00 - 21:00", "After 21:00"],
-    "study_spot_preference": ["Free", "Paid", "No preference"],
+    # "day_preference": ["Weekday", "Weekend"],
+    # "closing_time": ["Before 18:00", "18:00 - 21:00", "After 21:00"],
+    "payment_preference": ["Free", "Paid", "No preference"],
     "coffee_available": ["Yes", "No"],
     "food_available": ["Yes", "No"],
     "meal_type": ["Full meal", "Snack/Pastry", "No preference"],
@@ -34,11 +34,12 @@ choices = {
 prolog = Prolog()
 
 
-def load_knowledge_base(filename="KB.pl"):
+def load_knowledge_base(filename,retractall, known):
     try:
         prolog.consult(filename)
         print("Knowledge base loaded successfully.")
-        return prolog
+        call(retractall(known))
+        return 
     except Exception as e:
         print(f"Failed to load the knowledge base: {e}")
         return None
@@ -53,7 +54,7 @@ def read_choice(prompt, choice_list):
         + "---------------------------------------"
     )
     for idx, choice in enumerate(choice_list, start=1):
-        print(f"  {idx}. {choice}")
+        print(f"{idx}, {choice}")
     print("\nPlease enter the number of your choice:", end=" ")
 
     while True:
@@ -93,9 +94,11 @@ def collect_user_responses(prompts, choices):
 
         response = read_choice(prompt_text, choice_list)
         user_responses[attribute] = response
+        print("User responses: ", user_responses)
+        assert_response(attribute, response.lower())
 
         # Dynamically decide the next question or filter recommendations based on the response
-        filter_prompts = ['study_spot_preference','food_available']
+        filter_prompts = ["payment_preference", "food_available"]
         if attribute in filter_prompts:
             next_question = get_next_question_based_on_rule(attribute, response)
             print("Next question: ", next_question)
@@ -103,32 +106,33 @@ def collect_user_responses(prompts, choices):
                 idx = key_list.index(next_question)
         else:
             idx += 1
+
     return user_responses
 
 
 def assert_response(attribute, response):
-    # Convert the attribute to a valid Prolog atom if necessary (e.g., replacing spaces with underscores)
+    # Convert the attribute to a valid Prolog atom if necessary
+
     prolog_attribute = attribute.replace(" ", "_").lower()
+    print("Prolog attribute: ", prolog_attribute)
     prolog_response = response.lower()
-    # Retract any previous answer to the same question to avoid conflicts
-    prolog.retract(f"answer({prolog_response}, _)")
 
-    # Assert the fact in Prolog
-    fact = f"{prolog_attribute}('{prolog_response}')"
-    prolog.assertz(fact)
+    # Retract previous answers (if any)
+    prolog_query = f"answer('{prolog_response}', {prolog_attribute})"
+    prolog.assertz(prolog_query)
 
 
-def query_kb_for_recommendations(query_predicate, result_var="Recommendation"):
-    # Construct the query string
-    query_str = f"{query_predicate}({result_var})"
-    # Execute the query
-    query_result = list(prolog.query(query_str))
-    # Process and return the results
-    recommendations = [result[result_var] for result in query_result]
-    return recommendations
+# def query_kb_for_recommendations(query_predicate, result_var="Recommendation"):
+#     # Construct the query string
+#     query_str = f"{query_predicate}({result_var})"
+#     # Execute the query
+#     query_result = list(prolog.query(query_str))
+#     # Process and return the results
+#     recommendations = [result[result_var] for result in query_result]
+#     return recommendations
 
 
-def read_py(attribute, *args):
+def read_py(attribute, value, user_responses):
     prompt = prompts[attribute]
     choice_list = choices.get(attribute)  # Get choices for the attribute, if any
 
@@ -140,43 +144,40 @@ def read_py(attribute, *args):
             try:
                 response = int(input("Enter the number of your choice: ").strip())
                 if 1 <= response <= len(choice_list):
-                    return choice_list[
-                        response - 1
-                    ].lower()  # Return the choice in lowercase
+                    selected_choice = choice_list[response - 1].lower()
+                    user_responses.unify(selected_choice)  # Unification! # Return the choice in lowercase
                 else:
                     print("Invalid choice, please try again.")
             except ValueError:
                 print("Please enter a number.")
+        
     else:
         # Handle open-ended questions
         response = input(f"{prompt}: ").strip().lower()
         return response
 
 
-def handle_expert_system_logic(user_responses, prolog):
-    # Assert responses as facts
-    for attribute, response in user_responses.items():
-        assert_response(attribute, response, prolog)
+def handle_expert_system_logic():
 
-    # Query for recommendations
-    recommendations = query_kb_for_recommendations("find_study_spot", prolog)
-
-    # Display recommendations
+   # Query for recommendations
+    recommendations = list(prolog.query("recommendation(StudySpot)"))
     if recommendations:
-        for rec in recommendations:
-            print(f"Recommended Study Spot: {rec}")
+       names = [rec["StudySpot"] for rec in recommendations]
+       print(f"Based on your preferences, you might like: {', '.join(names)}")
     else:
-        print("Sorry, no recommendations based on your preferences.")
-
-    # # Reset KB facts for a clean state
-    # reset_kb_facts(list(user_responses.keys()), prolog)
+       print("Sorry, no recommendations match your preferences.")
 
 
 # Simplified main function
 def main():
-    load_knowledge_base()
+    retractall = Functor("retractall") # remove all items from Knowledge Base
+    known = Functor("answer", 2) # predicate for storing user responses
+    read_py.arity = 3
+    registerForeign(read_py)
+    filename = "KB.pl"
+    load_knowledge_base(filename,retractall, known)
     user_responses = collect_user_responses(prompts, choices)
-    handle_expert_system_logic(user_responses, prolog)
+    handle_expert_system_logic()
 
     print("Thank you for using our service!")
 
