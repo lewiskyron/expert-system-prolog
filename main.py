@@ -2,8 +2,8 @@ from pyswip import Prolog, Functor, call, registerForeign
 from pyswip.easy import *
 
 prompts = {
-    "day_preference": "Is it the weekday or the weekend?",
-    "closing_time": "How late do you need the study spot to be available until?",
+ #   "day_preference": "Is it the weekday or the weekend?",
+#    "closing_time": "How late do you need the study spot to be available until?",
     "study_spot_preference": "Do you want a free or paid study spot?",
     "coffee_available": "Do you want a study spot that has coffee available?",
     "food_available": "Do you want a study spot that has food available?",
@@ -17,8 +17,8 @@ prompts = {
 }
 
 choices = {
-    "day_preference": ["Weekday", "Weekend"],
-    "closing_time": ["Before 18:00", "18:00 - 21:00", "After 21:00"],
+ #   "day_preference": ["Weekday", "Weekend"],
+ #   "closing_time": ["Before 18:00", "18:00 - 21:00", "After 21:00"],
     "study_spot_preference": ["Free", "Paid", "No preference"],
     "coffee_available": ["Yes", "No"],
     "food_available": ["Yes", "No"],
@@ -106,12 +106,45 @@ def collect_user_responses(prompts, choices):
     return user_responses
 
 
-def assert_response(attribute, response):
+def assert_response(attribute, response, prolog):
     # Convert the attribute to a valid Prolog atom if necessary (e.g., replacing spaces with underscores)
     prolog_attribute = attribute.replace(" ", "_").lower()
-    prolog_response = response.lower()
-    # Retract any previous answer to the same question to avoid conflicts
-    prolog.retract(f"answer({prolog_response}, _)")
+    
+    # Ensure response is correctly formatted as a Prolog term
+    # If response is a string, enclose it in single quotes for Prolog
+    if isinstance(response, str):
+        prolog_response = response.lower()
+        # Escape single quotes in the response
+        prolog_response = prolog_response.replace("'", "\\'")
+        # Enclose in single quotes
+        prolog_response = f"'{prolog_response}'"
+    else:
+        prolog_response = response
+
+    # Prepare the Prolog assertion
+    fact = f"assertz({prolog_attribute}({prolog_response}))"
+    
+    # Check if an answer with prolog_response exists before retracting
+    try:
+        if list(prolog.query(f"answer({prolog_attribute}, _)")):
+            prolog.retract(f"answer({prolog_attribute}, _)")
+    except StopIteration:
+        pass  # Ignore the StopIteration error if no answer is found
+
+    # Assert the new response
+    prolog.assertz(f"answer({prolog_attribute}, '{prolog_response}')")
+
+
+    # Check if an answer with prolog_response exists before retracting
+    try:
+        if list(prolog.query(f"answer({prolog_attribute}, _)")):
+            prolog.retract(f"answer({prolog_attribute}, _)")
+    except StopIteration:
+        pass  # Ignore the StopIteration error if no answer is found
+
+    # Assert the new response
+    prolog.assertz(f"answer({prolog_attribute}, '{prolog_response}')")
+
 
     # Assert the fact in Prolog
     fact = f"{prolog_attribute}('{prolog_response}')"
