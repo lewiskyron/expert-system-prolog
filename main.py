@@ -1,10 +1,26 @@
-from pyswip import Prolog, Functor, call, registerForeign
+# find instruction in the readme.md on how to run this file.
+from pyswip import Prolog, Variable, Functor, registerForeign
 from pyswip.easy import *
 
+prolog = Prolog()  # create a Prolog instance
+
+# define answer options for each question
+choices = {
+    "payment_preference": ["Free", "Paid"],
+    "coffee_available": ["Yes", "No"],
+    "food_available": ["Yes", "No"],
+    "meal_type": ["full_meal", "no_full_meal"],
+    "walking_distance": ["Yes", "No"],
+    "travel_distance": ["less_than_5km", "more_than_5km"],
+    "plug_needed": ["Yes", "No"],
+    "wifi_needed": ["Yes", "No"],
+    "closing_time": ["17", "18", "19", "20", "21"],
+    "wheelchair_accessible": ["Yes", "No"],
+}
+
+# define prompts for each question
 prompts = {
-    "day_preference": "Is it the weekday or the weekend?",
-    "closing_time": "How late do you need the study spot to be available until?",
-    "study_spot_preference": "Do you want a free or paid study spot?",
+    "payment_preference": "Do you want a free or paid study spot?",
     "coffee_available": "Do you want a study spot that has coffee available?",
     "food_available": "Do you want a study spot that has food available?",
     "meal_type": "Do you want a full meal or a snack/pastry?",
@@ -12,174 +28,243 @@ prompts = {
     "travel_distance": "How far are you willing to travel for your study spot?",
     "plug_needed": "Do you need a plug/outlet?",
     "wifi_needed": "Do you need a study space with free Wifi?",
-    "minimum_stars": "Minimum stars (like Google reviews)",
+    "closing_time": "How late would you like to stay at the study spot?",
     "wheelchair_accessible": "Do you need your study spot to be wheelchair accessible?",
 }
 
-choices = {
-    "day_preference": ["Weekday", "Weekend"],
-    "closing_time": ["Before 18:00", "18:00 - 21:00", "After 21:00"],
-    "study_spot_preference": ["Free", "Paid", "No preference"],
-    "coffee_available": ["Yes", "No"],
-    "food_available": ["Yes", "No"],
-    "meal_type": ["Full meal", "Snack/Pastry", "No preference"],
-    "walking_distance": ["Yes", "No"],
-    "travel_distance": ["less_than_5km", "more_than_5km"],
-    "plug_needed": ["Yes", "No"],
-    "wifi_needed": ["Yes", "No"],
-    "minimum_stars": ["1", "2", "3", "4", "5"],
-    "wheelchair_accessible": ["Yes", "No", "No preference"],
+choices_natural_language = {  # for printing purposes
+    "full_meal": "Full meal",
+    "no_full_meal": "snack",
+    "less_than_5km": "less than 5 km",
+    "more_than_5km": "more than 5 km",
+    "17": "5:00pm",
+    "18": "6:00pm",
+    "19": "7:00pm",
+    "20": "8:00pm",
+    "21": "9:00pm",
 }
 
-prolog = Prolog()
+# dictionary of cafe names and links
+recommendations_reference = {
+    "saint_espresso": {
+        "name": "Saint Espresso",
+        "link": "http://www.saintespresso.com/",
+    },
+    "goswell_road_coffee": {
+        "name": "Goswell Road Coffee",
+        "link": "https://www.instagram.com/goswellroadcoffee/",
+    },
+    "gecko_coffeehouse": {
+        "name": "Gecko",
+        "link": "https://geckocoffee.house/pages/menu",
+    },
+    "the_british_library": {"name": "British Library", "link": "https://www.bl.uk/"},
+    "cafebotanical": {
+        "name": "Cafe Botanical",
+        "link": "https://www.cafebotanical.com/",
+    },
+    "barbican_centre": {"name": "Barbican", "link": "https://www.barbican.org.uk/"},
+    "attendant_coffee_roasters_shoreditch": {
+        "name": "Attendant",
+        "link": "https://www.the-attendant.com/pages/shoreditch",
+    },
+    "national_art_library": {
+        "name": "National Art Library",
+        "link": "http://www.vam.ac.uk/nal/",
+    },
+    "wellcome_collection": {
+        "name": "Welcome Collection",
+        "link": "https://wellcomecollection.org/",
+    },
+    "senate_house_library": {
+        "name": "Senate House Library",
+        "link": "https://www.london.ac.uk/senate-house-library",
+    },
+    "chestnut_bakery": {
+        "name": "Chestnut Bakery",
+        "link": "http://www.chestnutbakery.com/",
+    },
+    "bench": {"name": "Bench", "link": "http://www.benchlondon.com/"},
+    "briki": {"name": "Briki", "link": "https://www.instagram.com/brikilondon/?hl=en"},
+    "katsute_100": {"name": "Katsute 100", "link": "http://www.katsute100.com/"},
+    "burr_co_london": {
+        "name": "Burr",
+        "link": "https://www.kimptonfitzroylondon.com/us/en/london-restaurant/burr-and-co",
+    },
+    "commons_at_old_street_works": {
+        "name": "Commons",
+        "link": "http://www.commonsat.co.uk/",
+    },
+    "the_hoxton": {
+        "name": "The Hoxton",
+        "link": "https://thehoxton.com/london/shoreditch/hoxton-grill-restaurant/",
+    },
+    "waterstones": {
+        "name": "Waterstones",
+        "link": "https://www.waterstones.com/bookshops/islington",
+    },
+    "dishoom_kings_cross": {
+        "name": "Dishroom",
+        "link": "https://www.dishoom.com/kings-cross?utm_source=google&utm_medium=organic&utm_campaign=Yext&utm_content=D3-KingsCross&y_source=1_MjMwNDkyMDItNzE1LWxvY2F0aW9uLndlYnNpdGU%3D",
+    },
+    "kensington_central_library": {
+        "name": "Kensington",
+        "link": "http://www.rbkc.gov.uk/libraries",
+    },
+    "hilton_london_tower_bridge": {
+        "name": "Hilton",
+        "link": "https://www.hilton.com/en/hotels/lontbhi-hilton-london-tower-bridge/?SEO_id=GMB-EMEA-HI-LONTBHI",
+    },
+    "redemption_roasters": {
+        "name": "Redemption",
+        "link": "https://www.redemptionroasters.com/locations/islington-high-street/#menu?utm_source=GMB&utm_medium=organic",
+    },
+    "pretamanger": {
+        "name": "Pret A Manger",
+        "link": "https://www.pret.co.uk/en-GB/our-menu",
+    },
+}
 
 
-def load_knowledge_base(filename="KB.pl"):
+def load_knowledge_base(
+    retractall,
+    known,
+    filename="none",
+):
+    # get the path to the KB file
     try:
-        prolog.consult(filename)
-        print("Knowledge base loaded successfully.")
-        return prolog
+        prolog.consult(
+            filename
+        )  # load the KB file (make sure you open the entire folder so it runs)
+        call(retractall(known))  # remove all items from Knowledge Base
     except Exception as e:
-        print(f"Failed to load the knowledge base: {e}")
-        return None
+        print(e)
+        print("Check if your KB exists within this folder.")
+        return
 
 
-def read_choice(prompt, choice_list):
-    print(
-        "---------------------------------------"
-        + "\n"
-        + prompt
-        + "\n"
-        + "---------------------------------------"
-    )
+def sytstem_clock():
+    try_again = input("\nDo you want to use the app again (y/n)? ")
+    if try_again == "y":
+        return True
+    elif try_again == "n":
+        print("Thank you for using our service!")
+        return False
+
+
+def generate_recommendations():
+    study_spots = []
+    for result in prolog.query("recommendation(X)."):
+        study_spot_name = result["X"]
+        study_spots.append(study_spot_name)
+
+    return study_spots
+
+
+def read_choice(Attribute, prompt, choice_list):
+    print("---------------------------------------")
+    print(prompt)
+    print("---------------------------------------")
+
+    special_print_attributes = ["meal_type", "travel_distance", "closing_time"]
+
     for idx, choice in enumerate(choice_list, start=1):
-        print(f"  {idx}. {choice}")
-    print("\nPlease enter the number of your choice:", end=" ")
+        if Attribute in special_print_attributes:
+            # handles for special print cases
+            print(f"{idx}. {choices_natural_language[choice]}")
+        else:
+            print(f"{idx}. {choice}")
 
     while True:
-        response = input().strip()
+        response = input("Enter the number of your choice: ").strip()
         if response.isdigit():
             response = int(response)
             if 1 <= response <= len(choice_list):
-                print(
-                    f"You selected: {choice_list[response - 1]}"
-                )  # Feedback on choice
                 return choice_list[response - 1].lower()
             else:
-                print("Invalid choice, please try again:", end=" ")
+                print("Invalid choice, please try again.")
         else:
-            print("Please enter a number:", end=" ")
+            print("Please enter a number.")
 
 
-def get_next_question_based_on_rule(current_question, response):
-    prolog.assertz(f"answer({current_question}, '{response}')")
-    next_question_result = list(
-        prolog.query(f"next_question({current_question}, NextQuestion)")
-    )
-    print("KB response: ", next_question_result)
-    if next_question_result:
-        return next_question_result[0]["NextQuestion"]
-    return None
+# Define foreign function to read user input
+def read_py(Attribute, V, Y):
+    if isinstance(Y, Variable):
+        # Check if the user has already answered this question. If not, ask it.
+        Attribute = str(Attribute)
+        if Attribute not in user_answers.keys():
+            prompt = prompts[str(Attribute)]  # More explicit
+            choice_list = choices.get(str(Attribute))
 
+            if choice_list:
+                selected_choice = read_choice(Attribute, prompt, choice_list)
 
-def collect_user_responses(prompts, choices):
-    user_responses = {}
-    idx = 0
-    key_list = list(prompts.keys())
-    while idx < len(prompts):
-        attribute = key_list[idx]
-        prompt_text = prompts[attribute]
-        choice_list = choices.get(attribute)
+            user_answers[Attribute] = selected_choice
 
-        response = read_choice(prompt_text, choice_list)
-        user_responses[attribute] = response
-
-        # Dynamically decide the next question or filter recommendations based on the response
-        filter_prompts = ['study_spot_preference','food_available']
-        if attribute in filter_prompts:
-            next_question = get_next_question_based_on_rule(attribute, response)
-            print("Next question: ", next_question)
-            if next_question:
-                idx = key_list.index(next_question)
+        if user_answers[Attribute].lower() == str(V):
+            response = "yes"
         else:
-            idx += 1
-    return user_responses
+            response = "no"
+        # unify the user's response to the variable Y
+        fact = f"fact({Attribute}, '{user_answers[Attribute]}')"
+        # print(fact)
+        # prolog.assertz(fact)
+        Y.unify(str(response))
+        return True
+    else:  # if Y is not a variable, return False
+        return False
 
 
-def assert_response(attribute, response):
-    # Convert the attribute to a valid Prolog atom if necessary (e.g., replacing spaces with underscores)
-    prolog_attribute = attribute.replace(" ", "_").lower()
-    prolog_response = response.lower()
-    # Retract any previous answer to the same question to avoid conflicts
-    prolog.retract(f"answer({prolog_response}, _)")
+def system_engine():
+    """Main function to run the program."""
 
-    # Assert the fact in Prolog
-    fact = f"{prolog_attribute}('{prolog_response}')"
-    prolog.assertz(fact)
+    while True:  # keeps repeating until user enters 'n' to stop the program
+        global user_answers
+        user_answers = {}  # store user responses to questions
+        # Define predicates
+        retractall = Functor("retractall")  # remove all items from Knowledge Base
+        known = Functor("known", 3)  # predicate for storing user responses
 
+        read_py.arity = 3  # set the arity of the foreign function
+        registerForeign(read_py)  # register the foreign function
+        load_knowledge_base(retractall, known, filename="study_KB.pl")
 
-def query_kb_for_recommendations(query_predicate, result_var="Recommendation"):
-    # Construct the query string
-    query_str = f"{query_predicate}({result_var})"
-    # Execute the query
-    query_result = list(prolog.query(query_str))
-    # Process and return the results
-    recommendations = [result[result_var] for result in query_result]
-    return recommendations
+        recommendations = generate_recommendations()
 
+        # printing out the recommendation
+        if recommendations:
+            if len(recommendations) == 1:
+                study_spot = recommendations[0]
+                print(
+                    f"\nGreat news! We found a perfect match. Check out {recommendations_reference[study_spot]['name']}!: {recommendations_reference[study_spot]['link']}"
+                )
 
-def read_py(attribute, *args):
-    prompt = prompts[attribute]
-    choice_list = choices.get(attribute)  # Get choices for the attribute, if any
+            elif len(recommendations) > 1:
+                print(
+                    "Well its you lucky day today! You have multiple spots to pick from. Fell free to pick any of the ones below: "
+                )
 
-    if choice_list:
-        print(prompt)
-        for idx, choice in enumerate(choice_list, start=1):
-            print(f"{idx}. {choice}")
-        while True:
-            try:
-                response = int(input("Enter the number of your choice: ").strip())
-                if 1 <= response <= len(choice_list):
-                    return choice_list[
-                        response - 1
-                    ].lower()  # Return the choice in lowercase
-                else:
-                    print("Invalid choice, please try again.")
-            except ValueError:
-                print("Please enter a number.")
-    else:
-        # Handle open-ended questions
-        response = input(f"{prompt}: ").strip().lower()
-        return response
+                for idx in range(len(recommendations)):
 
+                    study_spot = recommendations[idx]
+                    print(
+                        f"{idx}. {recommendations_reference[study_spot]['name']}: {recommendations_reference[study_spot]['link']}"
+                    )
 
-def handle_expert_system_logic(user_responses, prolog):
-    # Assert responses as facts
-    for attribute, response in user_responses.items():
-        assert_response(attribute, response, prolog)
+            if sytstem_clock():
+                continue
+            else:
+                break
 
-    # Query for recommendations
-    recommendations = query_kb_for_recommendations("find_study_spot", prolog)
-
-    # Display recommendations
-    if recommendations:
-        for rec in recommendations:
-            print(f"Recommended Study Spot: {rec}")
-    else:
-        print("Sorry, no recommendations based on your preferences.")
-
-    # # Reset KB facts for a clean state
-    # reset_kb_facts(list(user_responses.keys()), prolog)
-
-
-# Simplified main function
-def main():
-    load_knowledge_base()
-    user_responses = collect_user_responses(prompts, choices)
-    handle_expert_system_logic(user_responses, prolog)
-
-    print("Thank you for using our service!")
+        else:
+            print(
+                "\nUnfortunately, we could not find a restaurant that matches your criteria."
+            )
+            if sytstem_clock():
+                continue
+            else:
+                break
 
 
 if __name__ == "__main__":
-    main()
+    system_engine()
