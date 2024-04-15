@@ -40,8 +40,20 @@ source env/bin/activate
 pip install -r requirements.txt
 ```
 
-## Run the expert program
+### Error correction 
+If everything runs fine you should see an error aboaut some variables not being instantiated properly. This is a versioning issue and to solve open the venv folder created, open the pyswip folder within it and open the core.py file there. 
+Ctlr + F for PL_version
+and change the line for the one below. 
+```bash
+PL_version = _lib.PL_version_info
+```
 
+## Alternative running environment 
+If that does not work don't worry. You can still run the program on google colab just click on the link below.
+https://colab.research.google.com/drive/1df2BEAbkGOvDMcXBsttCZO5H0anWZje9?usp=sharing <br/>
+All you need to do is upload the study_KB.pl into colab and the program should work as expected.
+
+## Run the expert program
 ```bash
 python main.py
 ```
