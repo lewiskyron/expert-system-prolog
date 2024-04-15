@@ -25,7 +25,7 @@ cd path/to/your/project
 ### Create a virtual environment named 'env' (or any other name you prefer)
 
 ```bash
-python3 -m venv env
+python -m venv env
 ```
 
 ### Activate the virtual environment
@@ -57,3 +57,14 @@ All you need to do is upload the study_KB.pl into colab and the program should w
 ```bash
 python main.py
 ```
+
+
+### Error correction 
+If everything runs fine you should see an error aboaut some variables not being instantiated properly. This is a versioning issue and to solve open the venv folder created, open the pyswip folder within it and open the core.py file there. 
+Ctlr + F for PL_version
+and change the line for the one below. 
+```bash
+PL_version = _lib.PL_version_info
+```
+
+
